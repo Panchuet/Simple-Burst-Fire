@@ -24,7 +24,7 @@ function SimpleFireBurst:Start()
     self.burstCount = self.dataContainer.GetInt("burstCount")
     self.botBurstCooldown = self.dataContainer.GetFloat("botBurstCooldown")
 
-    self.switchCooldownDuration = self.dataContainer.GetFloat("switchCooldown")
+    self.switchCooldown = self.dataContainer.GetFloat("switchCooldown")
     self.switchKeybind = self.dataContainer.GetString("switchKeybind")
 
     self.selectorValues = {}
@@ -73,12 +73,12 @@ function SimpleFireBurst:ApplyMode()
     self.shotsFired = 0
     self.burstLocked = false
     self.botCooldownTimer = 0
-    self.weapon.UnlockWeapon()
 end
 
 function SimpleFireBurst:SwitchMode()
     self.modeIndex = 1 - self.modeIndex
-    self.switchTimer = self.switchCooldownDuration
+    self.switchTimer = self.switchCooldown
+    self.weapon.LockWeapon()
     
     if self.animator ~= nil then
         self.animator.SetTrigger(self.switchParameter)
@@ -93,27 +93,29 @@ function SimpleFireBurst:OnEnable()
 end
 
 function SimpleFireBurst:Update()
-    if self.weapon == nil then return end 
+    if self.weapon == nil then return end
 
     if self.switchTimer > 0 then
         self.switchTimer = self.switchTimer - Time.deltaTime
+
+        if self.switchTimer <= 0 then
+            self.weapon.UnlockWeapon()
+        end
     end
 
-    local isEquippedByPlayer = (self.weapon.user ~= nil and self.weapon.user.isPlayer and self.weapon.isUnholstered)
-
-    if isEquippedByPlayer
-        and Input.GetKeyDown(self.switchKeybind)
-        and self.switchTimer <= 0
+    if self.switchTimer <= 0
         and not self.weapon.isReloading
+        and self.weapon.user ~= nil
+        and self.weapon.user.isPlayer
+        and Input.GetKeyDown(self.switchKeybind)
     then
         self:SwitchMode()
     end
 
     if self.modeIndex == 0 then
         local triggerReleased = not self.weapon.isHoldingFire
-        local isBot = (self.weapon.user ~= nil and self.weapon.user.isBot)
 
-        if isBot then
+        if self.weapon.user ~= nil and self.weapon.user.isBot then
             if self.burstLocked then
                 if self.botCooldownTimer > 0 then
                     self.botCooldownTimer = self.botCooldownTimer - Time.deltaTime
